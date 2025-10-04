@@ -4,28 +4,74 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
+import { supabase } from "../../supabaseClient";
+
+interface Profile {
+  id: string;
+  name: string;
+  avatar_url?: string;
+  kakao_id?: number;
+}
 
 const Profile = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [name, setName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    const currentUser = localStorage.getItem("currentUser");
-    if (!currentUser) {
-      navigate("/auth");
-      return;
-    }
-    const userData = JSON.parse(currentUser);
-    setUser(userData);
-    setName(userData.name);
+    checkUser();
   }, [navigate]);
 
-  const handleUpdateProfile = (e: React.FormEvent) => {
+  const checkUser = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+
+      setUser(session.user);
+
+      // 프로필 정보 가져오기
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Profile fetch error:', profileError);
+      } else if (profileData) {
+        setProfile(profileData);
+        setName(profileData.name || '');
+      }
+
+      // 프로필이 없는 경우 기본 이름 설정
+      if (!profileData) {
+        const defaultName = session.user.user_metadata?.name || 
+                           session.user.user_metadata?.nickname || 
+                           session.user.email || 
+                           'User';
+        setName(defaultName);
+      }
+    } catch (error) {
+      console.error('Auth check error:', error);
+      navigate("/auth");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name) {
+    if (!name.trim()) {
       toast({
         title: "오류",
         description: "이름을 입력해주세요.",
@@ -34,30 +80,88 @@ const Profile = () => {
       return;
     }
 
-    const updatedUser = { ...user, name };
-    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+    if (!user) return;
 
-    const users = JSON.parse(localStorage.getItem("users") || "[]");
-    const updatedUsers = users.map((u: any) => (u.id === user.id ? updatedUser : u));
-    localStorage.setItem("users", JSON.stringify(updatedUsers));
+    try {
+      setUpdating(true);
 
-    setUser(updatedUser);
-    toast({
-      title: "프로필 업데이트",
-      description: "프로필이 성공적으로 업데이트되었습니다.",
-    });
+      const profileData = {
+        id: user.id,
+        name: name.trim(),
+        avatar_url: user.user_metadata?.avatar_url || profile?.avatar_url,
+        kakao_id: user.user_metadata?.provider_id ? 
+          parseInt(user.user_metadata.provider_id) : 
+          profile?.kakao_id
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(profileData);
+
+      if (error) {
+        console.error('Update profile error:', error);
+        toast({
+          title: "오류",
+          description: "프로필 업데이트 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      } else {
+        setProfile(prev => ({ ...prev, ...profileData }));
+        toast({
+          title: "프로필 업데이트",
+          description: "프로필이 성공적으로 업데이트되었습니다.",
+        });
+      }
+    } catch (error) {
+      console.error('Update profile error:', error);
+      toast({
+        title: "오류",
+        description: "프로필 업데이트 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
+    }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("currentUser");
-    toast({
-      title: "로그아웃",
-      description: "로그아웃되었습니다.",
-    });
-    navigate("/auth");
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Logout error:', error);
+        toast({
+          title: "오류",
+          description: "로그아웃 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "로그아웃",
+          description: "로그아웃되었습니다.",
+        });
+        navigate("/auth");
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) return null;
+
+  const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url;
+  const email = user.email;
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -73,6 +177,16 @@ const Profile = () => {
             <CardDescription>프로필 정보를 관리하세요</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* 프로필 이미지 */}
+            <div className="flex justify-center">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={avatarUrl} />
+                <AvatarFallback className="text-lg">
+                  {name.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">이름</Label>
@@ -81,17 +195,42 @@ const Profile = () => {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  placeholder="이름을 입력하세요"
                 />
               </div>
+              
               <div className="space-y-2">
                 <Label htmlFor="email">이메일</Label>
-                <Input id="email" type="email" value={user.email} disabled />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  value={email || ''} 
+                  disabled 
+                  className="bg-muted"
+                />
+                <p className="text-sm text-muted-foreground">
+                  카카오 계정의 이메일 정보입니다
+                </p>
               </div>
-              <Button type="submit">프로필 업데이트</Button>
+
+              {user.user_metadata?.provider === 'kakao' && (
+                <div className="space-y-2">
+                  <Label>로그인 방식</Label>
+                  <div className="flex items-center space-x-2">
+                    <div className="bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-semibold">
+                      카카오 로그인
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <Button type="submit" disabled={updating} className="w-full">
+                {updating ? "업데이트 중..." : "프로필 업데이트"}
+              </Button>
             </form>
 
             <div className="pt-4 border-t">
-              <Button variant="destructive" onClick={handleLogout}>
+              <Button variant="destructive" onClick={handleLogout} className="w-full">
                 로그아웃
               </Button>
             </div>

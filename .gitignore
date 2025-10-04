@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# MCP Server (개발용, 배포에서 제외)
+mcp-supabase-server/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

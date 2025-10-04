@@ -6,82 +6,199 @@ import { AddTodoForm } from "@/components/AddTodoForm";
 import { TodoItem } from "@/components/TodoItem";
 import { toast } from "@/hooks/use-toast";
 import { User } from "lucide-react";
+import { supabase } from "../../supabaseClient";
 
 interface Todo {
   id: string;
   title: string;
   completed: boolean;
-  userId: string;
+  user_id: string;
+  created_at?: string;
+}
+
+interface Profile {
+  id: string;
+  name: string;
+  avatar_url?: string;
 }
 
 const Index = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const currentUser = localStorage.getItem("currentUser");
-    if (!currentUser) {
-      navigate("/auth");
-      return;
-    }
-    const userData = JSON.parse(currentUser);
-    setUser(userData);
-
-    const allTodos = JSON.parse(localStorage.getItem("todos") || "[]");
-    const userTodos = allTodos.filter((todo: Todo) => todo.userId === userData.id);
-    setTodos(userTodos);
+    checkUser();
   }, [navigate]);
 
-  const handleAddTodo = (title: string) => {
-    const newTodo: Todo = {
-      id: Date.now().toString(),
-      title,
-      completed: false,
-      userId: user.id,
-    };
+  const checkUser = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
 
-    const updatedTodos = [...todos, newTodo];
-    setTodos(updatedTodos);
+      setUser(session.user);
+      
+      // 프로필 정보 가져오기
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
 
-    const allTodos = JSON.parse(localStorage.getItem("todos") || "[]");
-    allTodos.push(newTodo);
-    localStorage.setItem("todos", JSON.stringify(allTodos));
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Profile fetch error:', profileError);
+      } else if (profileData) {
+        setProfile(profileData);
+      }
 
-    toast({
-      title: "할 일 추가됨",
-      description: "새 할 일이 추가되었습니다.",
-    });
+      // 할 일 목록 가져오기
+      await fetchTodos(session.user.id);
+    } catch (error) {
+      console.error('Auth check error:', error);
+      navigate("/auth");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleToggleTodo = (id: string) => {
-    const updatedTodos = todos.map((todo) =>
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+  const fetchTodos = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('todos')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Todos fetch error:', error);
+        toast({
+          title: "오류",
+          description: "할 일 목록을 불러오는 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      } else {
+        setTodos(data || []);
+      }
+    } catch (error) {
+      console.error('Fetch todos error:', error);
+    }
+  };
+
+  const handleAddTodo = async (title: string) => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('todos')
+        .insert([
+          {
+            title,
+            completed: false,
+            user_id: user.id,
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Add todo error:', error);
+        toast({
+          title: "오류",
+          description: "할 일 추가 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      } else {
+        setTodos(prev => [data, ...prev]);
+        toast({
+          title: "할 일 추가됨",
+          description: "새 할 일이 추가되었습니다.",
+        });
+      }
+    } catch (error) {
+      console.error('Add todo error:', error);
+      toast({
+        title: "오류",
+        description: "할 일 추가 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleTodo = async (id: string) => {
+    try {
+      const todo = todos.find(t => t.id === id);
+      if (!todo) return;
+
+      const { error } = await supabase
+        .from('todos')
+        .update({ completed: !todo.completed })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Toggle todo error:', error);
+        toast({
+          title: "오류",
+          description: "할 일 상태 변경 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      } else {
+        setTodos(prev => 
+          prev.map(t => 
+            t.id === id ? { ...t, completed: !t.completed } : t
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Toggle todo error:', error);
+    }
+  };
+
+  const handleDeleteTodo = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Delete todo error:', error);
+        toast({
+          title: "오류",
+          description: "할 일 삭제 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      } else {
+        setTodos(prev => prev.filter(t => t.id !== id));
+        toast({
+          title: "할 일 삭제됨",
+          description: "할 일이 삭제되었습니다.",
+        });
+      }
+    } catch (error) {
+      console.error('Delete todo error:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>로딩 중...</p>
+        </div>
+      </div>
     );
-    setTodos(updatedTodos);
-
-    const allTodos = JSON.parse(localStorage.getItem("todos") || "[]");
-    const updatedAllTodos = allTodos.map((todo: Todo) =>
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    );
-    localStorage.setItem("todos", JSON.stringify(updatedAllTodos));
-  };
-
-  const handleDeleteTodo = (id: string) => {
-    const updatedTodos = todos.filter((todo) => todo.id !== id);
-    setTodos(updatedTodos);
-
-    const allTodos = JSON.parse(localStorage.getItem("todos") || "[]");
-    const updatedAllTodos = allTodos.filter((todo: Todo) => todo.id !== id);
-    localStorage.setItem("todos", JSON.stringify(updatedAllTodos));
-
-    toast({
-      title: "할 일 삭제됨",
-      description: "할 일이 삭제되었습니다.",
-    });
-  };
+  }
 
   if (!user) return null;
+
+  const displayName = profile?.name || user.user_metadata?.name || user.email;
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -90,7 +207,7 @@ const Index = () => {
           <h1 className="text-3xl font-bold">Todo App</h1>
           <Button variant="outline" onClick={() => navigate("/profile")}>
             <User className="mr-2 h-4 w-4" />
-            {user.name}
+            {displayName}
           </Button>
         </div>
 
