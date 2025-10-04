@@ -37,31 +37,28 @@ const Index = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (!session) {
-        navigate("/auth");
-        return;
+      if (session) {
+        setUser(session.user);
+        
+        // 프로필 정보 가져오기
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Profile fetch error:', profileError);
+        } else if (profileData) {
+          setProfile(profileData);
+        }
+
+        // 할 일 목록 가져오기
+        await fetchTodos(session.user.id);
       }
-
-      setUser(session.user);
-      
-      // 프로필 정보 가져오기
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Profile fetch error:', profileError);
-      } else if (profileData) {
-        setProfile(profileData);
-      }
-
-      // 할 일 목록 가져오기
-      await fetchTodos(session.user.id);
+      // 로그인하지 않은 경우에도 홈페이지를 보여줍니다 (로그인 안내와 함께)
     } catch (error) {
       console.error('Auth check error:', error);
-      navigate("/auth");
     } finally {
       setLoading(false);
     }
@@ -196,7 +193,78 @@ const Index = () => {
     );
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <div className="max-w-4xl mx-auto">
+          {/* 헤더 */}
+          <div className="flex justify-between items-center py-6">
+            <h1 className="text-3xl font-bold">Todo App</h1>
+            <Button onClick={() => navigate("/auth")}>
+              로그인
+            </Button>
+          </div>
+
+          {/* 랜딩 섹션 */}
+          <div className="text-center py-16 space-y-6">
+            <h2 className="text-5xl font-bold text-primary">
+              간단하고 효율적인<br />
+              할 일 관리
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              카카오 계정으로 간편하게 로그인하고, 
+              언제 어디서나 할 일을 관리하세요.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <Button 
+                size="lg" 
+                onClick={() => navigate("/auth")}
+                className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold"
+              >
+                카카오로 시작하기
+              </Button>
+            </div>
+          </div>
+
+          {/* 기능 소개 */}
+          <div className="grid md:grid-cols-3 gap-8 py-16">
+            <Card>
+              <CardHeader>
+                <CardTitle>✨ 간편한 로그인</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  카카오 계정으로 빠르고 안전하게 로그인하세요.
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>📝 할 일 관리</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  할 일을 추가하고, 완료 상태를 관리하세요.
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>🔒 안전한 데이터</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Supabase를 통한 안전한 데이터 저장과 관리.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const displayName = profile?.name || user.user_metadata?.name || user.email;
 

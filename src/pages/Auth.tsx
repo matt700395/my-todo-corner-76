@@ -70,14 +70,29 @@ const Auth = () => {
           <CardTitle>Todo App</CardTitle>
           <CardDescription>카카오 계정으로 간편하게 로그인하세요</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <Button 
             onClick={handleKakaoLogin}
             disabled={loading}
-            className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-semibold"
+            className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-semibold py-3 text-lg"
           >
-            {loading ? "로그인 중..." : "카카오로 로그인"}
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black"></div>
+                로그인 중...
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-2">
+                💬 카카오로 로그인
+              </div>
+            )}
           </Button>
+          
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">
+              카카오 계정으로 간편하게 가입하고 로그인하세요
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

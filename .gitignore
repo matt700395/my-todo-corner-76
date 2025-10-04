@@ -25,3 +25,4 @@ mcp-supabase-server/
 *.njsproj
 *.sln
 *.sw?
+*.env.local
