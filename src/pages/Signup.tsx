@@ -10,10 +10,16 @@ import { supabase } from "../../supabaseClient";
 const Signup = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
-  const [name, setName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  // 상세 정보 입력 폼 상태
+  const [name, setName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [school, setSchool] = useState("");
+  const [department, setDepartment] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [nationalId, setNationalId] = useState("");
 
   useEffect(() => {
     checkUserAndProfile();
@@ -56,6 +62,7 @@ const Signup = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // 필수 필드 검증
     if (!name.trim()) {
       toast({
         title: "오류",
@@ -74,12 +81,59 @@ const Signup = () => {
       return;
     }
 
-    // 전화번호 형식 검증 (간단한 검증)
+    if (!school.trim()) {
+      toast({
+        title: "오류",
+        description: "학교를 입력해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!department.trim()) {
+      toast({
+        title: "오류",
+        description: "학과를 입력해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!studentId.trim()) {
+      toast({
+        title: "오류",
+        description: "학번을 입력해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!nationalId.trim()) {
+      toast({
+        title: "오류",
+        description: "주민등록번호를 입력해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 전화번호 형식 검증
     const phoneRegex = /^[0-9]{10,11}$/;
     if (!phoneRegex.test(phoneNumber.replace(/[^0-9]/g, ''))) {
       toast({
         title: "오류",
         description: "올바른 전화번호 형식을 입력해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 주민등록번호 형식 검증 (간단한 검증)
+    const nationalIdRegex = /^[0-9]{6}-[0-9]{7}$/;
+    if (!nationalIdRegex.test(nationalId)) {
+      toast({
+        title: "오류",
+        description: "올바른 주민등록번호 형식을 입력해주세요. (예: 123456-1234567)",
         variant: "destructive",
       });
       return;
@@ -92,12 +146,16 @@ const Signup = () => {
 
       const { error } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: user.id,
           name: name.trim(),
           phone_number: phoneNumber.trim(),
+          school: school.trim(),
+          department: department.trim(),
+          student_id: studentId.trim(),
+          national_id: nationalId.trim(),
           is_profile_completed: true
-        })
-        .eq('id', user.id);
+        });
 
       if (error) {
         console.error('Profile update error:', error);
@@ -138,30 +196,17 @@ const Signup = () => {
 
   if (!user) return null;
 
-  const kakaoNickname = user.user_metadata?.nickname;
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle>회원가입</CardTitle>
+          <CardTitle>상세 정보 입력</CardTitle>
           <CardDescription>
-            추가 정보를 입력하여 회원가입을 완료하세요
+            서비스 이용을 위해 추가 정보를 입력해주세요
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {kakaoNickname && (
-              <div className="space-y-2">
-                <Label>카카오 닉네임</Label>
-                <div className="flex items-center space-x-2">
-                  <div className="bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-semibold">
-                    {kakaoNickname}
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label htmlFor="name">이름 *</Label>
               <Input
@@ -186,8 +231,56 @@ const Signup = () => {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="school">학교 *</Label>
+              <Input
+                id="school"
+                type="text"
+                value={school}
+                onChange={(e) => setSchool(e.target.value)}
+                placeholder="대학교명을 입력하세요"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="department">학과 *</Label>
+              <Input
+                id="department"
+                type="text"
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                placeholder="학과명을 입력하세요"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="studentId">학번 *</Label>
+              <Input
+                id="studentId"
+                type="text"
+                value={studentId}
+                onChange={(e) => setStudentId(e.target.value)}
+                placeholder="학번을 입력하세요"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nationalId">주민등록번호 *</Label>
+              <Input
+                id="nationalId"
+                type="text"
+                value={nationalId}
+                onChange={(e) => setNationalId(e.target.value)}
+                placeholder="123456-1234567"
+                required
+              />
+            </div>
+
             <Button type="submit" disabled={submitting} className="w-full">
-              {submitting ? "가입 중..." : "회원가입 완료"}
+              {submitting ? "저장 중..." : "회원가입 완료"}
             </Button>
           </form>
         </CardContent>

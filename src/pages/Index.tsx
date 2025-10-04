@@ -18,8 +18,13 @@ interface Todo {
 
 interface Profile {
   id: string;
-  name: string;
-  avatar_url?: string;
+  name?: string;
+  phone_number?: string;
+  school?: string;
+  department?: string;
+  student_id?: string;
+  national_id?: string;
+  is_profile_completed: boolean;
 }
 
 const Index = () => {
@@ -57,6 +62,10 @@ const Index = () => {
             navigate("/signup");
             return;
           }
+        } else {
+          // 프로필이 없는 경우 회원가입 페이지로
+          navigate("/signup");
+          return;
         }
 
         // 할 일 목록 가져오기
@@ -218,16 +227,16 @@ const Index = () => {
               할 일 관리
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              카카오 계정으로 간편하게 로그인하고, 
+              회원가입하고 로그인하여, 
               언제 어디서나 할 일을 관리하세요.
             </p>
             <div className="flex gap-4 justify-center">
               <Button 
                 size="lg" 
                 onClick={() => navigate("/auth")}
-                className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
               >
-                카카오로 시작하기
+                시작하기
               </Button>
             </div>
           </div>
@@ -236,11 +245,11 @@ const Index = () => {
           <div className="grid md:grid-cols-3 gap-8 py-16">
             <Card>
               <CardHeader>
-                <CardTitle>✨ 간편한 로그인</CardTitle>
+                <CardTitle>✨ 간편한 회원가입</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  카카오 계정으로 빠르고 안전하게 로그인하세요.
+                  이메일로 빠르고 안전하게 회원가입하세요.
                 </p>
               </CardContent>
             </Card>
@@ -272,7 +281,7 @@ const Index = () => {
     );
   }
 
-  const displayName = profile?.name || profile?.kakao_nickname || user.user_metadata?.nickname || 'User';
+  const displayName = profile?.name || user.email?.split('@')[0] || 'User';
 
   return (
     <div className="min-h-screen bg-background p-4">

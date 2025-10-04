@@ -11,6 +11,11 @@ export interface Profile {
   id: string
   name?: string
   phone_number?: string
+  school?: string
+  department?: string
+  student_id?: string
+  national_id?: string
+  // 기존 카카오 관련 필드들 (호환성 유지)
   kakao_nickname?: string
   kakao_id?: number
   is_profile_completed: boolean
