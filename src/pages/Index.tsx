@@ -266,7 +266,7 @@ const Index = () => {
     );
   }
 
-  const displayName = profile?.name || user.user_metadata?.name || user.email;
+  const displayName = profile?.name || user.user_metadata?.name || user.user_metadata?.nickname || 'User';
 
   return (
     <div className="min-h-screen bg-background p-4">

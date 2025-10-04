@@ -57,7 +57,6 @@ const Profile = () => {
       if (!profileData) {
         const defaultName = session.user.user_metadata?.name || 
                            session.user.user_metadata?.nickname || 
-                           session.user.email || 
                            'User';
         setName(defaultName);
       }
@@ -161,7 +160,6 @@ const Profile = () => {
   if (!user) return null;
 
   const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url;
-  const email = user.email;
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -197,20 +195,6 @@ const Profile = () => {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="이름을 입력하세요"
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">이메일</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  value={email || ''} 
-                  disabled 
-                  className="bg-muted"
-                />
-                <p className="text-sm text-muted-foreground">
-                  카카오 계정의 이메일 정보입니다
-                </p>
               </div>
 
               {user.user_metadata?.provider === 'kakao' && (
