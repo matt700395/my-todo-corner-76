@@ -6,8 +6,10 @@
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   name VARCHAR(100),
-  avatar_url TEXT,
+  phone_number VARCHAR(20),
+  kakao_nickname VARCHAR(100),
   kakao_id BIGINT UNIQUE,
+  is_profile_completed BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -51,20 +53,20 @@ BEFORE UPDATE ON public.todos
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
 
--- 5. 새 사용자 프로필 자동 생성 함수
+-- 5. 새 사용자 프로필 자동 생성 함수 (카카오 닉네임만 저장)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, name, avatar_url, kakao_id)
+  INSERT INTO public.profiles (id, kakao_nickname, kakao_id, is_profile_completed)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'nickname', 'User'),
-    NEW.raw_user_meta_data->>'avatar_url',
+    NEW.raw_user_meta_data->>'nickname',
     CASE 
       WHEN NEW.raw_user_meta_data->>'provider_id' IS NOT NULL 
       THEN (NEW.raw_user_meta_data->>'provider_id')::BIGINT
       ELSE NULL
-    END
+    END,
+    FALSE  -- 추가 정보 입력 필요
   );
   RETURN NEW;
 END;

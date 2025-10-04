@@ -41,8 +41,8 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
         options: {
-          redirectTo: `${window.location.origin}/`,
-          scopes: 'openid profile'  // 이메일 스코프 제거
+          redirectTo: `${window.location.origin}/signup`,  // 회원가입 페이지로 리다이렉트
+          scopes: 'profile_nickname'  // 닉네임만 요청
         }
       });
 

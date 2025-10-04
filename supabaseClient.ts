@@ -10,8 +10,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export interface Profile {
   id: string
   name?: string
-  avatar_url?: string
+  phone_number?: string
+  kakao_nickname?: string
   kakao_id?: number
+  is_profile_completed: boolean
   created_at: string
   updated_at: string
 }

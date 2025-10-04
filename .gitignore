@@ -26,3 +26,4 @@ mcp-supabase-server/
 *.sln
 *.sw?
 *.env.local
+.vercel

@@ -11,9 +11,11 @@ import { supabase } from "../../supabaseClient";
 
 interface Profile {
   id: string;
-  name: string;
-  avatar_url?: string;
+  name?: string;
+  phone_number?: string;
+  kakao_nickname?: string;
   kakao_id?: number;
+  is_profile_completed: boolean;
 }
 
 const Profile = () => {
@@ -21,6 +23,7 @@ const Profile = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [name, setName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -51,13 +54,12 @@ const Profile = () => {
       } else if (profileData) {
         setProfile(profileData);
         setName(profileData.name || '');
+        setPhoneNumber(profileData.phone_number || '');
       }
 
       // 프로필이 없는 경우 기본 이름 설정
       if (!profileData) {
-        const defaultName = session.user.user_metadata?.name || 
-                           session.user.user_metadata?.nickname || 
-                           'User';
+        const defaultName = session.user.user_metadata?.nickname || 'User';
         setName(defaultName);
       }
     } catch (error) {
@@ -79,6 +81,15 @@ const Profile = () => {
       return;
     }
 
+    if (!phoneNumber.trim()) {
+      toast({
+        title: "오류",
+        description: "전화번호를 입력해주세요.",
+        variant: "destructive", 
+      });
+      return;
+    }
+
     if (!user) return;
 
     try {
@@ -87,10 +98,12 @@ const Profile = () => {
       const profileData = {
         id: user.id,
         name: name.trim(),
-        avatar_url: user.user_metadata?.avatar_url || profile?.avatar_url,
+        phone_number: phoneNumber.trim(),
+        kakao_nickname: user.user_metadata?.nickname,
         kakao_id: user.user_metadata?.provider_id ? 
           parseInt(user.user_metadata.provider_id) : 
-          profile?.kakao_id
+          profile?.kakao_id,
+        is_profile_completed: true
       };
 
       const { error } = await supabase
@@ -159,7 +172,7 @@ const Profile = () => {
 
   if (!user) return null;
 
-  const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url;
+  const kakaoNickname = profile?.kakao_nickname || user.user_metadata?.nickname;
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -175,10 +188,9 @@ const Profile = () => {
             <CardDescription>프로필 정보를 관리하세요</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* 프로필 이미지 */}
+            {/* 프로필 아바타 */}
             <div className="flex justify-center">
               <Avatar className="h-24 w-24">
-                <AvatarImage src={avatarUrl} />
                 <AvatarFallback className="text-lg">
                   {name.charAt(0).toUpperCase()}
                 </AvatarFallback>
@@ -186,6 +198,17 @@ const Profile = () => {
             </div>
 
             <form onSubmit={handleUpdateProfile} className="space-y-4">
+              {kakaoNickname && (
+                <div className="space-y-2">
+                  <Label>카카오 닉네임</Label>
+                  <div className="flex items-center space-x-2">
+                    <div className="bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-semibold">
+                      {kakaoNickname}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="name">이름</Label>
                 <Input
@@ -194,6 +217,17 @@ const Profile = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="이름을 입력하세요"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">전화번호</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="010-1234-5678"
                 />
               </div>
 

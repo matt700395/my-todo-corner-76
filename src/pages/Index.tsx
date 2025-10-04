@@ -51,6 +51,12 @@ const Index = () => {
           console.error('Profile fetch error:', profileError);
         } else if (profileData) {
           setProfile(profileData);
+          
+          // 프로필이 완성되지 않은 경우 회원가입 페이지로 리다이렉트
+          if (!profileData.is_profile_completed) {
+            navigate("/signup");
+            return;
+          }
         }
 
         // 할 일 목록 가져오기
@@ -266,7 +272,7 @@ const Index = () => {
     );
   }
 
-  const displayName = profile?.name || user.user_metadata?.name || user.user_metadata?.nickname || 'User';
+  const displayName = profile?.name || profile?.kakao_nickname || user.user_metadata?.nickname || 'User';
 
   return (
     <div className="min-h-screen bg-background p-4">
